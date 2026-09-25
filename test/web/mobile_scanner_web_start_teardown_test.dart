@@ -52,6 +52,36 @@ void main() {
       );
     });
 
+    test('stop() before acquiring the camera never requests it', () async {
+      final plugin =
+          MobileScannerWeb()
+            ..setWebBarcodeReader(WebBarcodeReader.barcodeDetector);
+
+      // Resolve up front, so that a start that does reach getUserMedia fails
+      // on the assertion below rather than hanging on the stub.
+      getUserMedia.resolve();
+
+      // start() is parked on loading the reader's library when this lands.
+      final startFuture = plugin.start(testStartOptions);
+
+      // Listen before stopping: the start fails while stop() is still being
+      // awaited, and an unobserved failure would be reported as uncaught.
+      final startFailure = expectLater(
+        startFuture,
+        throwsA(isA<MobileScannerException>()),
+        reason: 'a start that was stopped must not report a running camera',
+      );
+
+      await plugin.stop();
+      await startFailure;
+
+      expect(
+        getUserMedia.callCount,
+        0,
+        reason: 'a stopped scanner must not prompt for or light the camera',
+      );
+    });
+
     test('stop() while acquiring the camera releases the stream', () async {
       final plugin =
           MobileScannerWeb()

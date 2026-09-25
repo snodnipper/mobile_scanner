@@ -499,6 +499,10 @@ class MobileScannerWeb extends MobileScannerPlatform {
       alternateScriptUrl: _alternateScriptUrl,
     );
 
+    // Loading the library can take a while; a scanner dismissed meanwhile
+    // must not go on to prompt for, and briefly light, the camera.
+    _throwIfTornDown(generation);
+
     // Request camera permissions and prepare the video stream.
     final videoStream = await _prepareVideoStream(
       startOptions.cameraDirection,
