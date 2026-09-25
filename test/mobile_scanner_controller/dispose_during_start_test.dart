@@ -36,21 +36,29 @@ void main() {
       platform.completeStart();
       await startFuture;
 
-      // The disposed controller must not be left holding the platform camera
-      // session: the next controller to dispose would then skip the platform
-      // teardown, and the camera would stay live.
+      expect(
+        MobileScannerController.platformSessionOwner,
+        isNull,
+        reason: 'a disposed controller must not hold the camera session',
+      );
+
+      // Holding it would make the next controller to dispose skip the
+      // platform teardown, and the camera would stay live.
       final next = MobileScannerController(autoStart: false)..attach();
 
       await next.dispose();
 
-      expect(platform.disposeCalls, 2);
+      expect(
+        platform.disposeCalls,
+        2,
+        reason: 'both disposes must tear down the platform camera',
+      );
     },
   );
 }
 
 class SlowStartMobileScannerPlatform extends MobileScannerPlatform {
   int disposeCalls = 0;
-  int stopCalls = 0;
 
   final Completer<void> _startGate = Completer<void>();
 
@@ -80,10 +88,7 @@ class SlowStartMobileScannerPlatform extends MobileScannerPlatform {
   }
 
   @override
-  Future<void> stop() {
-    stopCalls++;
-    return Future.value();
-  }
+  Future<void> stop() => Future.value();
 
   @override
   Future<void> dispose() {
