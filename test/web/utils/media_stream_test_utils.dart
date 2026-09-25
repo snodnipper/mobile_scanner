@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:ui';
 
+import 'package:flutter_test/flutter_test.dart' show TestFailure;
 import 'package:mobile_scanner/src/enums/barcode_format.dart';
 import 'package:mobile_scanner/src/enums/camera_facing.dart';
 import 'package:mobile_scanner/src/enums/camera_lens_type.dart';
@@ -80,6 +81,9 @@ class GetUserMediaStub {
     _mediaDevices.getUserMedia =
         ((JSAny? constraints) {
           callCount++;
+          if (!_called.isCompleted) {
+            _called.complete();
+          }
           return _gate.future.toJS;
         }).toJS;
   }
@@ -89,18 +93,22 @@ class GetUserMediaStub {
   );
 
   final Completer<web.MediaStream> _gate = Completer<web.MediaStream>();
+  final Completer<void> _called = Completer<void>();
 
   /// How many times `getUserMedia` was called.
   int callCount = 0;
 
   /// Waits until the code under test has actually called `getUserMedia`.
-  Future<void> awaitCall() async {
-    while (callCount == 0) {
-      await Future<void>.delayed(Duration.zero);
-    }
-  }
+  ///
+  /// Fails the test instead of hanging if the call never comes.
+  Future<void> awaitCall() => _called.future.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () => throw TestFailure('getUserMedia was never called'),
+  );
 
   /// Hands the caller a live stream, as the browser would.
+  ///
+  /// Called before `getUserMedia` is, the call resolves immediately.
   web.MediaStream resolve() {
     final stream = createLiveVideoStream();
     _gate.complete(stream);
